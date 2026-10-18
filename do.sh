@@ -14,10 +14,23 @@ OUTPUT_CONFIG='>/dev/null 2>&1'
 CONNECTION_ATTEMPTS=12
 ATTEMPT_TIMEOUT=5
 ZONE=ru-central1-d
-# Availability zones: https://yandex.cloud/ru/docs/overview/concepts/geo-scope
-VALID_ZONES="ru-central1-a ru-central1-b ru-central1-d ru-central1-e ru-central1-k"
+
+# Prints space-separated IDs of the availability zones that are currently up
+availableZones() {
+    yc compute zone list --format text 2>/dev/null | awk '$4 == "UP" { printf "%s%s", sep, $2; sep = " " }'
+}
 
 usage() {
+    local zones
+    zones=$(availableZones || true)
+    if [ -n "$zones" ]
+    then
+        zones="one of: $zones"
+    else
+        zones="see 'yc compute zone list'"
+    fi
+
+
     echo "Usage: $0 [-c <1-254>] [-p <1-65535>] [-a <ip-prefix>] [-q <0-254>] [-z <zone>]" 1>&2
     echo "" 1>&2
     echo "  -d    delete old vpn instance before the configuration" 1>&2
@@ -28,7 +41,7 @@ usage() {
     echo "  -v    verbose output" 1>&2
     echo "  -i    initial connection attempts (default is $CONNECTION_ATTEMPTS)" 1>&2
     echo "  -t    attempt timeout in seconds (default is $ATTEMPT_TIMEOUT)" 1>&2
-    echo "  -z    the availability zone (default is $ZONE; one of: $VALID_ZONES)" 1>&2
+    echo "  -z    the availability zone (default is $ZONE; $zones)" 1>&2
     exit 1
 }
 
@@ -75,15 +88,6 @@ while getopts ":c:p:a:q:i:t:z:dv" o; do
             ATTEMPT_TIMEOUT=${OPTARG}
             ;;
         z)
-            if ! [[ " $VALID_ZONES " == *" ${OPTARG} "* ]]
-            then
-                echo "Incorrect value for argument -z!" 1>&2
-                echo "Valid zones: $VALID_ZONES" 1>&2
-                echo "" 1>&2
-
-                usage
-            fi
-
             ZONE=${OPTARG}
             ;;
         d)
@@ -122,6 +126,21 @@ fi
 if ! yc config get cloud-id > /dev/null 2>&1
 then
     echo "Please ensure that you've initialized the Yandex Cloud CLI tool with 'yc init'."
+    exit 1
+fi
+
+VALID_ZONES=$(availableZones || true)
+
+if [ -z "$VALID_ZONES" ]
+then
+    echo "Failed to get the list of availability zones with 'yc compute zone list'." 1>&2
+    exit 1
+fi
+
+if ! [[ " $VALID_ZONES " == *" $ZONE "* ]]
+then
+    echo "Incorrect value for argument -z: '$ZONE' is not an available zone!" 1>&2
+    echo "Available zones: $VALID_ZONES" 1>&2
     exit 1
 fi
 

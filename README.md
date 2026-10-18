@@ -32,9 +32,9 @@ with the arguments: `./do.sh -c 10 -a 10.0.0` — this will generate config for 
 clients with subnet `10.0.0.0/24`.
 
 The virtual machine is created in the `ru-central1-d` availability zone by
-default. Pass `-z` to pick another one, e.g. `./do.sh -z ru-central1-b`. Valid
-values are `ru-central1-a`, `ru-central1-b`, `ru-central1-d`, `ru-central1-e`
-and `ru-central1-k` — run `yc compute zone list` to check which are currently up.
+default. Pass `-z` to pick another one, e.g. `./do.sh -z ru-central1-b`. The
+value is checked against the zones that are currently up according to
+`yc compute zone list`; `./do.sh -h` prints them.
 
 It is also possible to request displaying the config as a QR-code, which can be
 useful when you need to configure VPN on mobile clients. Pass argument `-q 1` to
