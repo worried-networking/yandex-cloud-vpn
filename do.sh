@@ -13,9 +13,12 @@ REDIRECT_ERRORS_CONFIG='2>&1'
 OUTPUT_CONFIG='>/dev/null 2>&1'
 CONNECTION_ATTEMPTS=12
 ATTEMPT_TIMEOUT=5
+ZONE=ru-central1-d
+# Availability zones: https://yandex.cloud/ru/docs/overview/concepts/geo-scope
+VALID_ZONES="ru-central1-a ru-central1-b ru-central1-d ru-central1-e ru-central1-k"
 
 usage() {
-    echo "Usage: $0 [-c <1-254>] [-p <1-65535>] [-a <ip-prefix>] [-q <0-254>]" 1>&2
+    echo "Usage: $0 [-c <1-254>] [-p <1-65535>] [-a <ip-prefix>] [-q <0-254>] [-z <zone>]" 1>&2
     echo "" 1>&2
     echo "  -d    delete old vpn instance before the configuration" 1>&2
     echo "  -c    the number of clients (default is $CLIENTS)" 1>&2
@@ -25,6 +28,7 @@ usage() {
     echo "  -v    verbose output" 1>&2
     echo "  -i    initial connection attempts (default is $CONNECTION_ATTEMPTS)" 1>&2
     echo "  -t    attempt timeout in seconds (default is $ATTEMPT_TIMEOUT)" 1>&2
+    echo "  -z    the availability zone (default is $ZONE; one of: $VALID_ZONES)" 1>&2
     exit 1
 }
 
@@ -32,7 +36,7 @@ deleteInstance() {
     yc compute instance delete "$INSTANCE_NAME"
 }
 
-while getopts ":c:p:a:q:i:t:dv" o; do
+while getopts ":c:p:a:q:i:t:z:dv" o; do
     case "${o}" in
         c)
             CLIENTS=${OPTARG}
@@ -69,6 +73,18 @@ while getopts ":c:p:a:q:i:t:dv" o; do
             ;;
         t)
             ATTEMPT_TIMEOUT=${OPTARG}
+            ;;
+        z)
+            if ! [[ " $VALID_ZONES " == *" ${OPTARG} "* ]]
+            then
+                echo "Incorrect value for argument -z!" 1>&2
+                echo "Valid zones: $VALID_ZONES" 1>&2
+                echo "" 1>&2
+
+                usage
+            fi
+
+            ZONE=${OPTARG}
             ;;
         d)
             CLEANUP_REQUIRED=1
@@ -126,7 +142,7 @@ fi
 echo 'Booting up a new server...'
 
 ip=$(yc compute instance create --name $INSTANCE_NAME \
-    --zone ru-central1-a \
+    --zone "$ZONE" \
     --ssh-key ~/.ssh/id_rsa.pub \
     --public-ip \
     --create-boot-disk "name=vpn-disk,auto-delete=true,size=10,image-folder-id=standard-images,image-family=ubuntu-2604-lts" \
